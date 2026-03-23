@@ -156,37 +156,62 @@ function recommendationCard(show, isPersonal) {
 }
 
 function settingsMenu(preferences) {
-    let message = '⚙️ *Налаштування*\n\n';
+    let message = '⚙️ *Поточні налаштування*\n\n';
 
-    if (preferences.genres.length > 0) {
-        message += `🎭 *Жанри:* ${preferences.genres.join(', ')}\n`;
+    if (preferences.genres && preferences.genres.length > 0) {
+        message += `🎭 *Жанри:* ${preferences.genres.join(', ')}\n\n`;
+    } else {
+        message += `🎭 *Жанри:* _не обрано_\n\n`;
     }
 
-    if (preferences.periods.length > 0) {
-        message += `⏰ *Періоди:* ${preferences.periods.join(', ')}\n`;
+    if (preferences.periods && preferences.periods.length > 0) {
+        message += `⏰ *Періоди:* ${preferences.periods.join(', ')}\n\n`;
+    } else {
+        message += `⏰ *Періоди:* _не обрано_\n\n`;
     }
 
     if (preferences.sceneType) {
         const scene = preferences.sceneType === 'main' ? 'Основна сцена' :
                       preferences.sceneType === 'chamber' ? 'Камерна сцена' : 'Без різниці';
-        message += `🎪 *Сцена:* ${scene}\n`;
+        message += `🎪 *Сцена:* ${scene}\n\n`;
+    } else {
+        message += `🎪 *Сцена:* _не обрано_\n\n`;
     }
 
-    message += '\n_Що бажаєте змінити?_';
+    message += '💡 Ці налаштування впливають на ваші персональні рекомендації.';
 
     return message;
 }
 
-function editGenres() {
-    return '🎭 *Оберіть жанри:*\n\n(можна вибрати декілька)';
-}
+function editPreferencesStart(currentPreferences) {
+    let message = '✏️ *Редагування налаштувань*\n\n';
 
-function editPeriods() {
-    return '⏰ *Оберіть періоди:*\n\n(можна вибрати декілька)';
-}
+    message += '📋 *Поточні налаштування:*\n';
 
-function editScene() {
-    return '🎪 *Оберіть сцену:*';
+    if (currentPreferences.genres && currentPreferences.genres.length > 0) {
+        message += `🎭 Жанри: ${currentPreferences.genres.join(', ')}\n`;
+    } else {
+        message += `🎭 Жанри: _не обрано_\n`;
+    }
+
+    if (currentPreferences.periods && currentPreferences.periods.length > 0) {
+        message += `⏰ Періоди: ${currentPreferences.periods.join(', ')}\n`;
+    } else {
+        message += `⏰ Періоди: _не обрано_\n`;
+    }
+
+    if (currentPreferences.sceneType) {
+        const scene = currentPreferences.sceneType === 'main' ? 'Основна сцена' :
+                      currentPreferences.sceneType === 'chamber' ? 'Камерна сцена' : 'Без різниці';
+        message += `🎪 Сцена: ${scene}\n`;
+    } else {
+        message += `🎪 Сцена: _не обрано_\n`;
+    }
+
+    message += '\n📝 *Крок 1/3: Жанри*\n\n';
+    message += 'Які жанри вам подобаються? (можна обрати декілька)';
+
+    return message;
 }
 
 function reminderMessage(booking) {
@@ -225,8 +250,6 @@ module.exports = {
     popularRecommendationsHeader,
     recommendationCard,
     settingsMenu,
-    editGenres,
-    editPeriods,
-    editScene,
+    editPreferencesStart,
     reminderMessage
 };

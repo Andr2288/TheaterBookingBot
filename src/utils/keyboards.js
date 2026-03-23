@@ -100,7 +100,7 @@ function onboardingGenres(selected = []) {
         const isSelected = selected.includes(genre);
         return Markup.button.callback(
             `${isSelected ? '✅' : '☐'} ${genre}`,
-            `onboarding:genre:${genre}`
+            `settings:genre:${genre}`
         );
     });
 
@@ -111,8 +111,8 @@ function onboardingGenres(selected = []) {
     }
 
     rows.push([
-        Markup.button.callback('Пропустити ⏭', 'onboarding:skip'),
-        Markup.button.callback('Далі ➡️', 'onboarding:next:genres')
+        Markup.button.callback('Пропустити ⏭', 'settings:skip'),
+        Markup.button.callback('Далі ➡️', 'settings:next:genres')
     ]);
 
     return Markup.inlineKeyboard(rows);
@@ -128,7 +128,7 @@ function onboardingPeriods(selected = []) {
         const isSelected = selected.includes(period);
         return Markup.button.callback(
             `${isSelected ? '✅' : '☐'} ${period}`,
-            `onboarding:period:${period}`
+            `settings:period:${period}`
         );
     });
 
@@ -138,8 +138,8 @@ function onboardingPeriods(selected = []) {
     }
 
     rows.push([
-        Markup.button.callback('Пропустити ⏭', 'onboarding:skip'),
-        Markup.button.callback('Далі ➡️', 'onboarding:next:periods')
+        Markup.button.callback('Пропустити ⏭', 'settings:skip'),
+        Markup.button.callback('Далі ➡️', 'settings:next:periods')
     ]);
 
     return Markup.inlineKeyboard(rows);
@@ -147,18 +147,16 @@ function onboardingPeriods(selected = []) {
 
 function onboardingScene() {
     return Markup.inlineKeyboard([
-        [Markup.button.callback('🏛 Основна сцена', 'onboarding:scene:main')],
-        [Markup.button.callback('🎪 Камерна сцена', 'onboarding:scene:chamber')],
-        [Markup.button.callback('🤷 Без різниці', 'onboarding:scene:any')],
-        [Markup.button.callback('Пропустити ⏭', 'onboarding:skip')]
+        [Markup.button.callback('🏛 Основна сцена', 'settings:scene:main')],
+        [Markup.button.callback('🎪 Камерна сцена', 'settings:scene:chamber')],
+        [Markup.button.callback('🤷 Без різниці', 'settings:scene:any')],
+        [Markup.button.callback('Пропустити ⏭', 'settings:skip')]
     ]);
 }
 
 function settingsMenu() {
     return Markup.inlineKeyboard([
-        [Markup.button.callback('🎭 Змінити жанри', 'settings:change_genres')],
-        [Markup.button.callback('⏰ Змінити періоди', 'settings:change_periods')],
-        [Markup.button.callback('🎪 Змінити сцену', 'settings:change_scene')]
+        [Markup.button.callback('✏️ Редагувати налаштування', 'settings:edit_preferences')]
     ]);
 }
 
