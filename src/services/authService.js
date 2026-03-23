@@ -1,9 +1,8 @@
-const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 
 async function getUserByTelegramId(telegramId) {
     try {
-        const [users] = await db.query(
+        const users = await db.query(  // Було: const [users]
             'SELECT * FROM users WHERE telegram_id = ?',
             [telegramId]
         );
@@ -16,7 +15,7 @@ async function getUserByTelegramId(telegramId) {
 
 async function authenticateUser(email, password, telegramId) {
     try {
-        const [users] = await db.query(
+        const users = await db.query(  // Було: const [users]
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
@@ -27,7 +26,8 @@ async function authenticateUser(email, password, telegramId) {
 
         const user = users[0];
 
-        // Перевірка пароля
+        // Перевірка пароля - ВАЖЛИВО: додаємо bcrypt
+        const bcrypt = require('bcryptjs');
         const isValid = await bcrypt.compare(password, user.password);
 
         if (!isValid) {
@@ -49,7 +49,7 @@ async function authenticateUser(email, password, telegramId) {
 
 async function userHasPreferences(userId) {
     try {
-        const [preferences] = await db.query(
+        const preferences = await db.query(  // Було: const [preferences]
             'SELECT * FROM user_preferences WHERE user_id = ?',
             [userId]
         );
@@ -104,7 +104,7 @@ async function saveUserPreferences(userId, preferences) {
 
 async function getUserPreferences(userId) {
     try {
-        const [preferences] = await db.query(
+        const preferences = await db.query(  // Було: const [preferences]
             'SELECT * FROM user_preferences WHERE user_id = ?',
             [userId]
         );

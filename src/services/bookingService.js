@@ -3,7 +3,7 @@ const db = require('../config/database');
 async function createBooking(userId, showId, row, seat, show, zone) {
     try {
         // Перевіряємо чи місце вільне
-        const [existing] = await db.query(
+        const existing = await db.query(  // Було: const [existing]
             'SELECT id FROM bookings WHERE show_id = ? AND seat_row = ? AND seat_number = ?',
             [showId, row, seat]
         );
@@ -48,7 +48,7 @@ function calculatePrice(show, row) {
 
 async function getUserBookings(userId) {
     try {
-        const [bookings] = await db.query(`
+        const bookings = await db.query(`  // Було: const [bookings]
             SELECT 
                 b.id as booking_id,
                 b.seat_row,
@@ -76,7 +76,7 @@ async function getUserBookings(userId) {
 async function cancelBooking(bookingId, userId) {
     try {
         // Перевіряємо що бронювання належить користувачу
-        const [booking] = await db.query(
+        const booking = await db.query(  // Було: const [booking]
             'SELECT show_id, created_at FROM bookings WHERE id = ? AND user_id = ?',
             [bookingId, userId]
         );
