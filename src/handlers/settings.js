@@ -41,7 +41,7 @@ async function handleCallback(ctx) {
 
     // Обробка онбордингу налаштувань (аналогічно до звичайного онбордингу)
     if (!ctx.session.settingsOnboarding) {
-        await ctx.answerCbQuery('❌ Помилка сесії');
+        await ctx.answerCbQuery('❌ Помилка сесії. Почніть налаштування заново: /settings');
         return;
     }
 
@@ -59,7 +59,14 @@ async function handleCallback(ctx) {
                 genres.push(value);
             }
 
-            await ctx.editMessageReplyMarkup(keyboards.onboardingGenres(genres).reply_markup);
+            try {
+                await ctx.editMessageReplyMarkup(keyboards.onboardingGenres(genres).reply_markup);
+            } catch (error) {
+                // Ігноруємо помилку якщо повідомлення не змінилось
+                if (!error.description?.includes('message is not modified')) {
+                    throw error;
+                }
+            }
         } else if (action === 'next' && value === 'genres') {
             if (ctx.session.settingsOnboarding.genres.length === 0) {
                 await ctx.answerCbQuery('❗ Оберіть хоча б один жанр');
@@ -69,7 +76,7 @@ async function handleCallback(ctx) {
             ctx.session.settingsOnboarding.step = 2;
             await ctx.editMessageText(
                 messages.onboardingPeriods(),
-                keyboards.onboardingPeriods()
+                keyboards.onboardingPeriods(ctx.session.settingsOnboarding.periods)
             );
         } else if (action === 'skip') {
             await finishPreferencesEdit(ctx, user.id);
@@ -86,7 +93,14 @@ async function handleCallback(ctx) {
                 periods.push(value);
             }
 
-            await ctx.editMessageReplyMarkup(keyboards.onboardingPeriods(periods).reply_markup);
+            try {
+                await ctx.editMessageReplyMarkup(keyboards.onboardingPeriods(periods).reply_markup);
+            } catch (error) {
+                // Ігноруємо помилку якщо повідомлення не змінилось
+                if (!error.description?.includes('message is not modified')) {
+                    throw error;
+                }
+            }
         } else if (action === 'next' && value === 'periods') {
             if (ctx.session.settingsOnboarding.periods.length === 0) {
                 await ctx.answerCbQuery('❗ Оберіть хоча б один період');
@@ -119,15 +133,15 @@ async function startPreferencesEdit(ctx, user) {
     // Ініціалізуємо сесію з поточними налаштуваннями
     ctx.session.settingsOnboarding = {
         step: 1,
-        genres: currentPreferences.genres || [],
-        periods: currentPreferences.periods || [],
+        genres: [...(currentPreferences.genres || [])], // Копіюємо масив
+        periods: [...(currentPreferences.periods || [])], // Копіюємо масив
         sceneType: currentPreferences.sceneType || null,
         userId: user.id
     };
 
     await ctx.editMessageText(
         messages.editPreferencesStart(currentPreferences),
-        keyboards.onboardingGenres(currentPreferences.genres || [])
+        keyboards.onboardingGenres(ctx.session.settingsOnboarding.genres)
     );
 }
 

@@ -42,7 +42,14 @@ async function handleCallback(ctx) {
                 genres.push(value);
             }
 
-            await ctx.editMessageReplyMarkup(keyboards.onboardingGenres(genres).reply_markup);
+            try {
+                await ctx.editMessageReplyMarkup(keyboards.onboardingGenres(genres).reply_markup);
+            } catch (error) {
+                // Ігноруємо помилку якщо повідомлення не змінилось
+                if (!error.description?.includes('message is not modified')) {
+                    throw error;
+                }
+            }
         } else if (action === 'next' && value === 'genres') {
             if (ctx.session.onboarding.genres.length === 0) {
                 await ctx.answerCbQuery('❗ Оберіть хоча б один жанр');
@@ -69,7 +76,14 @@ async function handleCallback(ctx) {
                 periods.push(value);
             }
 
-            await ctx.editMessageReplyMarkup(keyboards.onboardingPeriods(periods).reply_markup);
+            try {
+                await ctx.editMessageReplyMarkup(keyboards.onboardingPeriods(periods).reply_markup);
+            } catch (error) {
+                // Ігноруємо помилку якщо повідомлення не змінилось
+                if (!error.description?.includes('message is not modified')) {
+                    throw error;
+                }
+            }
         } else if (action === 'next' && value === 'periods') {
             if (ctx.session.onboarding.periods.length === 0) {
                 await ctx.answerCbQuery('❗ Оберіть хоча б один період');
