@@ -90,7 +90,75 @@ function bookingActions(bookingId, showDate) {
     return Markup.inlineKeyboard(buttons);
 }
 
+// ===== ONBOARDING KEYBOARDS (prefix: onboarding:) =====
+
 function onboardingGenres(selected = []) {
+    const genres = [
+        'Драма', 'Комедія', 'Мюзикл', 'Трагедія',
+        'Історична', 'Містика', 'Епос'
+    ];
+
+    const buttons = genres.map(genre => {
+        const isSelected = selected.includes(genre);
+        return Markup.button.callback(
+            `${isSelected ? '✅' : '☐'} ${genre}`,
+            `onboarding:genre:${genre}`
+        );
+    });
+
+    // Розбиваємо по 2 в ряд
+    const rows = [];
+    for (let i = 0; i < buttons.length; i += 2) {
+        rows.push(buttons.slice(i, i + 2));
+    }
+
+    rows.push([
+        Markup.button.callback('Пропустити ⏭', 'onboarding:skip'),
+        Markup.button.callback('Далі ➡️', 'onboarding:next:genres')
+    ]);
+
+    return Markup.inlineKeyboard(rows);
+}
+
+function onboardingPeriods(selected = []) {
+    const periods = [
+        'Сучасність', 'XX століття', 'XVIII століття',
+        'Відродження', 'Середньовіччя', 'Античність'
+    ];
+
+    const buttons = periods.map(period => {
+        const isSelected = selected.includes(period);
+        return Markup.button.callback(
+            `${isSelected ? '✅' : '☐'} ${period}`,
+            `onboarding:period:${period}`
+        );
+    });
+
+    const rows = [];
+    for (let i = 0; i < buttons.length; i += 2) {
+        rows.push(buttons.slice(i, i + 2));
+    }
+
+    rows.push([
+        Markup.button.callback('Пропустити ⏭', 'onboarding:skip'),
+        Markup.button.callback('Далі ➡️', 'onboarding:next:periods')
+    ]);
+
+    return Markup.inlineKeyboard(rows);
+}
+
+function onboardingScene() {
+    return Markup.inlineKeyboard([
+        [Markup.button.callback('🏛 Основна сцена', 'onboarding:scene:main')],
+        [Markup.button.callback('🎪 Камерна сцена', 'onboarding:scene:chamber')],
+        [Markup.button.callback('🤷 Без різниці', 'onboarding:scene:any')],
+        [Markup.button.callback('Пропустити ⏭', 'onboarding:skip')]
+    ]);
+}
+
+// ===== SETTINGS KEYBOARDS (prefix: settings:) =====
+
+function settingsGenres(selected = []) {
     const genres = [
         'Драма', 'Комедія', 'Мюзикл', 'Трагедія',
         'Історична', 'Містика', 'Епос'
@@ -118,7 +186,7 @@ function onboardingGenres(selected = []) {
     return Markup.inlineKeyboard(rows);
 }
 
-function onboardingPeriods(selected = []) {
+function settingsPeriods(selected = []) {
     const periods = [
         'Сучасність', 'XX століття', 'XVIII століття',
         'Відродження', 'Середньовіччя', 'Античність'
@@ -145,7 +213,7 @@ function onboardingPeriods(selected = []) {
     return Markup.inlineKeyboard(rows);
 }
 
-function onboardingScene() {
+function settingsScene() {
     return Markup.inlineKeyboard([
         [Markup.button.callback('🏛 Основна сцена', 'settings:scene:main')],
         [Markup.button.callback('🎪 Камерна сцена', 'settings:scene:chamber')],
@@ -172,5 +240,8 @@ module.exports = {
     onboardingGenres,
     onboardingPeriods,
     onboardingScene,
+    settingsGenres,
+    settingsPeriods,
+    settingsScene,
     settingsMenu
 };

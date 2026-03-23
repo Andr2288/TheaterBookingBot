@@ -60,7 +60,7 @@ async function handleCallback(ctx) {
             }
 
             try {
-                await ctx.editMessageReplyMarkup(keyboards.onboardingGenres(genres).reply_markup);
+                await ctx.editMessageReplyMarkup(keyboards.settingsGenres(genres).reply_markup);
             } catch (error) {
                 // Ігноруємо помилку якщо повідомлення не змінилось
                 if (!error.description?.includes('message is not modified')) {
@@ -76,7 +76,7 @@ async function handleCallback(ctx) {
             ctx.session.settingsOnboarding.step = 2;
             await ctx.editMessageText(
                 messages.onboardingPeriods(),
-                keyboards.onboardingPeriods(ctx.session.settingsOnboarding.periods)
+                keyboards.settingsPeriods(ctx.session.settingsOnboarding.periods)
             );
         } else if (action === 'skip') {
             await finishPreferencesEdit(ctx, user.id);
@@ -94,7 +94,7 @@ async function handleCallback(ctx) {
             }
 
             try {
-                await ctx.editMessageReplyMarkup(keyboards.onboardingPeriods(periods).reply_markup);
+                await ctx.editMessageReplyMarkup(keyboards.settingsPeriods(periods).reply_markup);
             } catch (error) {
                 // Ігноруємо помилку якщо повідомлення не змінилось
                 if (!error.description?.includes('message is not modified')) {
@@ -110,7 +110,7 @@ async function handleCallback(ctx) {
             ctx.session.settingsOnboarding.step = 3;
             await ctx.editMessageText(
                 messages.onboardingScene(),
-                keyboards.onboardingScene()
+                keyboards.settingsScene()
             );
         } else if (action === 'skip') {
             await finishPreferencesEdit(ctx, user.id);
@@ -141,7 +141,7 @@ async function startPreferencesEdit(ctx, user) {
 
     await ctx.editMessageText(
         messages.editPreferencesStart(currentPreferences),
-        keyboards.onboardingGenres(ctx.session.settingsOnboarding.genres)
+        keyboards.settingsGenres(ctx.session.settingsOnboarding.genres)
     );
 }
 
