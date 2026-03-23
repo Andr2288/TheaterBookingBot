@@ -10,7 +10,7 @@ async function getRecommendations(userId) {
 
         const bookedIds = bookedShows.map(b => b.show_id);
         const excludeClause = bookedIds.length > 0
-            ? `AND s.id NOT IN (${bookedIds.join(',')})`
+            ? `AND id NOT IN (${bookedIds.join(',')})`  // ❌ ВИПРАВЛЕНО: прибрали s.
             : '';
 
         // 1. Популярні вистави
@@ -18,7 +18,7 @@ async function getRecommendations(userId) {
             SELECT s.*, COUNT(b.id) as booking_count
             FROM shows s
             LEFT JOIN bookings b ON s.id = b.show_id
-            WHERE s.date > NOW() ${excludeClause}
+            WHERE s.date > NOW() ${excludeClause.replace('id', 's.id')}  
             GROUP BY s.id
             ORDER BY booking_count DESC, s.date ASC
             LIMIT 3
