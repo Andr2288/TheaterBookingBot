@@ -28,7 +28,6 @@ async function showMyBookings(ctx) {
         keyboards.mainMenu()
     );
 
-    // Відправляємо кожне бронювання окремим повідомленням
     for (const booking of bookings) {
         await ctx.reply(
             messages.bookingCard(booking),

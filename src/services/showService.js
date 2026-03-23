@@ -158,17 +158,14 @@ function validateSeat(sceneType, zone, row, seat) {
         }
     };
 
-    // Перевірка ряду
     if (row < 1 || row > config.rows) {
         return { valid: false, error: `Ряд має бути від 1 до ${config.rows}` };
     }
 
-    // Перевірка місця
     if (seat < 1 || seat > config.seatsPerRow) {
         return { valid: false, error: `Місце має бути від 1 до ${config.seatsPerRow}` };
     }
 
-    // Перевірка зони
     if (!zoneRows[sceneType][zone].includes(row)) {
         return { valid: false, error: `Ряд ${row} не належить до обраної зони` };
     }

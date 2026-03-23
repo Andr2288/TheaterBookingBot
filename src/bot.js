@@ -1,6 +1,5 @@
 const { Telegraf, session } = require('telegraf');
 
-// Handlers
 const startHandler = require('./handlers/start');
 const onboardingHandler = require('./handlers/onboarding');
 const afishaHandler = require('./handlers/afisha');
@@ -12,10 +11,8 @@ const authService = require('./services/authService');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Session middleware для збереження стану користувача
 bot.use(session());
 
-// Ініціалізація сесії
 bot.use((ctx, next) => {
     if (!ctx.session) {
         ctx.session = {};
@@ -23,7 +20,6 @@ bot.use((ctx, next) => {
     return next();
 });
 
-// Команди
 bot.command('start', startHandler.start);
 bot.command('afisha', afishaHandler.showAfisha);
 bot.command('my', myBookingsHandler.showMyBookings);
@@ -44,7 +40,6 @@ bot.command('help', (ctx) => {
     );
 });
 
-// Обробка callback queries (inline buttons)
 bot.on('callback_query', async (ctx) => {
     const data = ctx.callbackQuery.data;
 
@@ -70,12 +65,10 @@ bot.on('callback_query', async (ctx) => {
     }
 });
 
-// Обробка текстових повідомлень
 bot.on('text', async (ctx) => {
     const state = ctx.session.state;
     const text = ctx.message.text.trim();
 
-    // Обробка станів вводу
     if (state === 'awaiting_email') {
         await startHandler.handleEmailInput(ctx);
         return;
@@ -87,7 +80,6 @@ bot.on('text', async (ctx) => {
         return;
     }
 
-    // Обробка кнопок головного меню
     switch (text) {
         case '📅 Афіша':
             await afishaHandler.showAfisha(ctx);

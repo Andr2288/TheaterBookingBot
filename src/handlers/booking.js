@@ -26,7 +26,6 @@ async function handleCallback(ctx) {
     const { showId, show } = ctx.session.booking;
 
     if (action === 'zone') {
-        // Вибрано зону
         ctx.session.booking.zone = value;
         ctx.session.booking.step = 'seat';
         ctx.session.state = 'awaiting_seat_selection';
@@ -54,7 +53,7 @@ async function handleCallback(ctx) {
             keyboards.zoneSelection(show, availability)
         );
     } else if (action === 'confirm') {
-        // Підтвердження бронювання
+
         const { zone, row, seat } = ctx.session.booking;
 
         const result = await bookingService.createBooking(
@@ -101,7 +100,6 @@ async function handleSeatInput(ctx) {
 
     const { show, zone } = ctx.session.booking;
 
-    // Очікуємо формат: "5-10" або "5 10"
     const match = text.match(/(\d+)[-\s](\d+)/);
 
     if (!match) {
@@ -116,7 +114,6 @@ async function handleSeatInput(ctx) {
     const row = parseInt(match[1]);
     const seat = parseInt(match[2]);
 
-    // Перевірка валідності місця
     const validation = showService.validateSeat(show.scene_type, zone, row, seat);
 
     if (!validation.valid) {
@@ -124,7 +121,6 @@ async function handleSeatInput(ctx) {
         return;
     }
 
-    // Перевірка чи місце вільне
     const bookedSeats = await showService.getBookedSeats(ctx.session.booking.showId);
     const isBooked = bookedSeats.some(s => s.seat_row === row && s.seat_number === seat);
 
@@ -133,7 +129,6 @@ async function handleSeatInput(ctx) {
         return;
     }
 
-    // Зберігаємо вибір
     ctx.session.booking.row = row;
     ctx.session.booking.seat = seat;
     ctx.session.state = null;

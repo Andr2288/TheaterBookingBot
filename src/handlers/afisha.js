@@ -44,7 +44,7 @@ async function handleShowCallback(ctx) {
             keyboards.showActions(showId)
         );
     } else if (action === 'book') {
-        // Переходимо до бронювання
+
         const show = await showService.getShowById(showId);
 
         ctx.session.booking = {

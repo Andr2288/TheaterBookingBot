@@ -33,13 +33,11 @@ async function handleCallback(ctx) {
         return;
     }
 
-    // Початок редагування налаштувань
     if (action === 'edit_preferences') {
         await startPreferencesEdit(ctx, user);
         return;
     }
 
-    // Обробка онбордингу налаштувань (аналогічно до звичайного онбордингу)
     if (!ctx.session.settingsOnboarding) {
         await ctx.answerCbQuery('❌ Помилка сесії. Почніть налаштування заново: /settings');
         return;
@@ -48,7 +46,6 @@ async function handleCallback(ctx) {
     const step = ctx.session.settingsOnboarding.step;
 
     if (step === 1) {
-        // Вибір жанрів
         if (action === 'genre') {
             const genres = ctx.session.settingsOnboarding.genres;
             const index = genres.indexOf(value);
@@ -62,7 +59,6 @@ async function handleCallback(ctx) {
             try {
                 await ctx.editMessageReplyMarkup(keyboards.settingsGenres(genres).reply_markup);
             } catch (error) {
-                // Ігноруємо помилку якщо повідомлення не змінилось
                 if (!error.description?.includes('message is not modified')) {
                     throw error;
                 }
@@ -82,7 +78,7 @@ async function handleCallback(ctx) {
             await finishPreferencesEdit(ctx, user.id);
         }
     } else if (step === 2) {
-        // Вибір періодів
+
         if (action === 'period') {
             const periods = ctx.session.settingsOnboarding.periods;
             const index = periods.indexOf(value);
@@ -96,7 +92,7 @@ async function handleCallback(ctx) {
             try {
                 await ctx.editMessageReplyMarkup(keyboards.settingsPeriods(periods).reply_markup);
             } catch (error) {
-                // Ігноруємо помилку якщо повідомлення не змінилось
+
                 if (!error.description?.includes('message is not modified')) {
                     throw error;
                 }
@@ -116,7 +112,6 @@ async function handleCallback(ctx) {
             await finishPreferencesEdit(ctx, user.id);
         }
     } else if (step === 3) {
-        // Вибір сцени
         if (action === 'scene') {
             ctx.session.settingsOnboarding.sceneType = value;
             await finishPreferencesEdit(ctx, user.id);
@@ -127,14 +122,12 @@ async function handleCallback(ctx) {
 }
 
 async function startPreferencesEdit(ctx, user) {
-    // Отримуємо поточні налаштування
     const currentPreferences = await authService.getUserPreferences(user.id);
 
-    // Ініціалізуємо сесію з поточними налаштуваннями
     ctx.session.settingsOnboarding = {
         step: 1,
-        genres: [...(currentPreferences.genres || [])], // Копіюємо масив
-        periods: [...(currentPreferences.periods || [])], // Копіюємо масив
+        genres: [...(currentPreferences.genres || [])],
+        periods: [...(currentPreferences.periods || [])],
         sceneType: currentPreferences.sceneType || null,
         userId: user.id
     };
@@ -148,24 +141,20 @@ async function startPreferencesEdit(ctx, user) {
 async function finishPreferencesEdit(ctx, userId) {
     const { genres, periods, sceneType } = ctx.session.settingsOnboarding;
 
-    // Зберігаємо оновлені вподобання в БД
     await authService.saveUserPreferences(userId, {
         genres,
         periods,
         sceneType
     });
 
-    // Очищаємо сесію
     delete ctx.session.settingsOnboarding;
 
-    // Редагуємо попереднє повідомлення
     await ctx.editMessageText(
         '✅ *Налаштування збережено!*\n\n' +
         'Ваші рекомендації оновлено на основі нових вподобань.',
         { parse_mode: 'Markdown' }
     );
 
-    // Показуємо оновлені налаштування
     const updatedPreferences = await authService.getUserPreferences(userId);
     await ctx.reply(
         messages.settingsMenu(updatedPreferences),

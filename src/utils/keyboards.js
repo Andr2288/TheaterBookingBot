@@ -90,8 +90,6 @@ function bookingActions(bookingId, showDate) {
     return Markup.inlineKeyboard(buttons);
 }
 
-// ===== ONBOARDING KEYBOARDS (prefix: onboarding:) =====
-
 function onboardingGenres(selected = []) {
     const genres = [
         'Драма', 'Комедія', 'Мюзикл', 'Трагедія',
@@ -106,7 +104,6 @@ function onboardingGenres(selected = []) {
         );
     });
 
-    // Розбиваємо по 2 в ряд
     const rows = [];
     for (let i = 0; i < buttons.length; i += 2) {
         rows.push(buttons.slice(i, i + 2));
@@ -156,8 +153,6 @@ function onboardingScene() {
     ]);
 }
 
-// ===== SETTINGS KEYBOARDS (prefix: settings:) =====
-
 function settingsGenres(selected = []) {
     const genres = [
         'Драма', 'Комедія', 'Мюзикл', 'Трагедія',
@@ -172,7 +167,6 @@ function settingsGenres(selected = []) {
         );
     });
 
-    // Розбиваємо по 2 в ряд
     const rows = [];
     for (let i = 0; i < buttons.length; i += 2) {
         rows.push(buttons.slice(i, i + 2));

@@ -23,7 +23,6 @@ async function showRecommendations(ctx) {
         return;
     }
 
-    // Персональні рекомендації
     if (recommendations.personal.length > 0) {
         await ctx.reply(
             messages.personalRecommendationsHeader(),
@@ -38,7 +37,6 @@ async function showRecommendations(ctx) {
         }
     }
 
-    // Популярні вистави
     if (recommendations.popular.length > 0) {
         await ctx.reply(messages.popularRecommendationsHeader());
 

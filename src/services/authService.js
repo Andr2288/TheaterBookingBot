@@ -26,7 +26,6 @@ async function authenticateUser(email, password, telegramId) {
 
         const user = users[0];
 
-        // Перевірка пароля - ВАЖЛИВО: додаємо bcrypt
         const bcrypt = require('bcryptjs');
         const isValid = await bcrypt.compare(password, user.password);
 
@@ -34,7 +33,6 @@ async function authenticateUser(email, password, telegramId) {
             return { success: false, error: 'Невірний пароль' };
         }
 
-        // Оновлюємо telegram_id
         await db.query(
             'UPDATE users SET telegram_id = ? WHERE id = ?',
             [telegramId, user.id]
@@ -49,7 +47,6 @@ async function authenticateUser(email, password, telegramId) {
 
 async function logoutUser(telegramId) {
     try {
-        // Видаляємо telegram_id з бази даних
         await db.query(
             'UPDATE users SET telegram_id = NULL WHERE telegram_id = ?',
             [telegramId]
@@ -79,10 +76,8 @@ async function saveUserPreferences(userId, preferences) {
     try {
         const { genres, periods, sceneType } = preferences;
 
-        // Видаляємо старі вподобання
         await db.query('DELETE FROM user_preferences WHERE user_id = ?', [userId]);
 
-        // Зберігаємо жанри
         if (genres && genres.length > 0) {
             for (const genre of genres) {
                 await db.query(
@@ -92,7 +87,6 @@ async function saveUserPreferences(userId, preferences) {
             }
         }
 
-        // Зберігаємо періоди
         if (periods && periods.length > 0) {
             for (const period of periods) {
                 await db.query(
@@ -102,7 +96,6 @@ async function saveUserPreferences(userId, preferences) {
             }
         }
 
-        // Зберігаємо тип сцени
         if (sceneType) {
             await db.query(
                 'INSERT INTO user_preferences (user_id, preference_type, preference_value) VALUES (?, ?, ?)',
@@ -150,13 +143,11 @@ async function getUserPreferences(userId) {
 async function updateUserPreferences(userId, updateData) {
     try {
         if (updateData.genres) {
-            // Видаляємо старі жанри
             await db.query(
                 'DELETE FROM user_preferences WHERE user_id = ? AND preference_type = ?',
                 [userId, 'genre']
             );
 
-            // Додаємо нові
             for (const genre of updateData.genres) {
                 await db.query(
                     'INSERT INTO user_preferences (user_id, preference_type, preference_value) VALUES (?, ?, ?)',

@@ -2,7 +2,6 @@ const db = require('../config/database');
 
 async function createBooking(userId, showId, row, seat, show, zone) {
     try {
-        // Перевіряємо чи місце вільне
         const existing = await db.query(
             'SELECT id FROM bookings WHERE show_id = ? AND seat_row = ? AND seat_number = ?',
             [showId, row, seat]
@@ -12,16 +11,13 @@ async function createBooking(userId, showId, row, seat, show, zone) {
             return { success: false, error: 'Місце вже заброньовано' };
         }
 
-        // Розраховуємо ціну
         const price = calculatePrice(show, row);
 
-        // Створюємо бронювання
         await db.query(
             'INSERT INTO bookings (user_id, show_id, seat_row, seat_number, price) VALUES (?, ?, ?, ?, ?)',
             [userId, showId, row, seat, price]
         );
 
-        // Додаємо взаємодію для рекомендацій
         await db.query(
             'INSERT INTO user_interactions (user_id, show_id, interaction_type) VALUES (?, ?, ?)',
             [userId, showId, 'attempt_book']
@@ -75,7 +71,6 @@ async function getUserBookings(userId) {
 
 async function cancelBooking(bookingId, userId) {
     try {
-        // Перевіряємо що бронювання належить користувачу
         const booking = await db.query(
             'SELECT show_id, created_at FROM bookings WHERE id = ? AND user_id = ?',
             [bookingId, userId]
@@ -85,7 +80,6 @@ async function cancelBooking(bookingId, userId) {
             return { success: false, error: 'Бронювання не знайдено' };
         }
 
-        // Видаляємо всі місця з цього бронювання (одна сесія)
         await db.query(
             'DELETE FROM bookings WHERE show_id = ? AND user_id = ? AND created_at = ?',
             [booking[0].show_id, userId, booking[0].created_at]

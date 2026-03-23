@@ -6,17 +6,14 @@ const messages = require('../utils/messages');
 async function start(ctx) {
     const telegramId = ctx.from.id;
 
-    // Перевіряємо чи користувач вже авторизований
     const user = await authService.getUserByTelegramId(telegramId);
 
     if (user) {
-        // Користувач авторизований
         await ctx.reply(
             messages.welcome(user.name),
             keyboards.mainMenu()
         );
     } else {
-        // Потрібна авторизація
         await ctx.reply(
             messages.welcomeNew(),
             keyboards.authMenu()
@@ -27,10 +24,8 @@ async function start(ctx) {
 async function logout(ctx) {
     const telegramId = ctx.from.id;
 
-    // Очищаємо telegram_id з бази даних
     const result = await authService.logoutUser(telegramId);
 
-    // Очищаємо сесію
     ctx.session = {};
 
     if (result.success) {
@@ -67,7 +62,6 @@ async function handleAuthCallback(ctx) {
 async function handleEmailInput(ctx) {
     const email = ctx.message.text.trim();
 
-    // Проста валідація email
     if (!email.includes('@')) {
         await ctx.reply('❌ Некоректний email. Спробуйте ще раз:');
         return;
@@ -88,20 +82,17 @@ async function handlePasswordInput(ctx) {
     const password = ctx.message.text;
     const telegramId = ctx.from.id;
 
-    // Видаляємо повідомлення з паролем
     try {
         await ctx.deleteMessage(ctx.message.message_id);
     } catch (error) {
         console.error('Cannot delete message:', error);
     }
 
-    // Авторизація
     const result = await authService.authenticateUser(email, password, telegramId);
 
     if (result.success) {
         ctx.session = {};
 
-        // Перевіряємо чи пройдено онбординг
         const hasPreferences = await authService.userHasPreferences(result.user.id);
 
         if (!hasPreferences) {

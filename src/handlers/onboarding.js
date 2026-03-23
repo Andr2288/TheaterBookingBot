@@ -31,7 +31,6 @@ async function handleCallback(ctx) {
     const step = ctx.session.onboarding.step;
 
     if (step === 1) {
-        // Вибір жанрів
         if (action === 'genre') {
             const genres = ctx.session.onboarding.genres;
             const index = genres.indexOf(value);
@@ -45,7 +44,6 @@ async function handleCallback(ctx) {
             try {
                 await ctx.editMessageReplyMarkup(keyboards.onboardingGenres(genres).reply_markup);
             } catch (error) {
-                // Ігноруємо помилку якщо повідомлення не змінилось
                 if (!error.description?.includes('message is not modified')) {
                     throw error;
                 }
@@ -65,7 +63,6 @@ async function handleCallback(ctx) {
             await finishOnboarding(ctx);
         }
     } else if (step === 2) {
-        // Вибір періодів
         if (action === 'period') {
             const periods = ctx.session.onboarding.periods;
             const index = periods.indexOf(value);
@@ -79,7 +76,6 @@ async function handleCallback(ctx) {
             try {
                 await ctx.editMessageReplyMarkup(keyboards.onboardingPeriods(periods).reply_markup);
             } catch (error) {
-                // Ігноруємо помилку якщо повідомлення не змінилось
                 if (!error.description?.includes('message is not modified')) {
                     throw error;
                 }
@@ -99,7 +95,6 @@ async function handleCallback(ctx) {
             await finishOnboarding(ctx);
         }
     } else if (step === 3) {
-        // Вибір сцени
         if (action === 'scene') {
             ctx.session.onboarding.sceneType = value;
             await finishOnboarding(ctx);
@@ -113,20 +108,17 @@ async function finishOnboarding(ctx) {
     const { genres, periods, sceneType } = ctx.session.onboarding;
     const userId = ctx.session.user.id;
 
-    // Зберігаємо вподобання в БД
     await authService.saveUserPreferences(userId, {
         genres,
         periods,
         sceneType
     });
 
-    // Редагуємо попереднє повідомлення (без клавіатури)
     await ctx.editMessageText(
         messages.onboardingComplete(),
         { parse_mode: 'Markdown' }
     );
 
-    // Відправляємо нове повідомлення з reply keyboard
     await ctx.reply(
         '🎭 Оберіть дію:',
         keyboards.mainMenu()

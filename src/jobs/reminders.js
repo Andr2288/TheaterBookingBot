@@ -7,12 +7,11 @@ async function sendReminders() {
     try {
         console.log('🔔 Checking for reminders...');
 
-        // Знаходимо бронювання на завтра (±2 години від 24 годин)
         const tomorrow = new Date();
-        tomorrow.setHours(tomorrow.getHours() + 22); // 22 години від зараз
+        tomorrow.setHours(tomorrow.getHours() + 22);
 
         const dayAfterTomorrow = new Date();
-        dayAfterTomorrow.setHours(dayAfterTomorrow.getHours() + 26); // 26 годин від зараз
+        dayAfterTomorrow.setHours(dayAfterTomorrow.getHours() + 26);
 
         const [bookings] = await db.query(`
             SELECT 
@@ -42,7 +41,6 @@ async function sendReminders() {
                     { parse_mode: 'Markdown' }
                 );
 
-                // Позначаємо що нагадування відправлено
                 await db.query(
                     'UPDATE bookings SET reminder_sent = TRUE WHERE id = ?',
                     [booking.booking_id]
@@ -60,7 +58,6 @@ async function sendReminders() {
     }
 }
 
-// Якщо запущено безпосередньо
 if (require.main === module) {
     sendReminders()
         .then(() => {
