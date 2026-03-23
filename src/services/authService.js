@@ -2,7 +2,7 @@ const db = require('../config/database');
 
 async function getUserByTelegramId(telegramId) {
     try {
-        const users = await db.query(  // Було: const [users]
+        const users = await db.query(
             'SELECT * FROM users WHERE telegram_id = ?',
             [telegramId]
         );
@@ -15,7 +15,7 @@ async function getUserByTelegramId(telegramId) {
 
 async function authenticateUser(email, password, telegramId) {
     try {
-        const users = await db.query(  // Було: const [users]
+        const users = await db.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
@@ -47,9 +47,24 @@ async function authenticateUser(email, password, telegramId) {
     }
 }
 
+async function logoutUser(telegramId) {
+    try {
+        // Видаляємо telegram_id з бази даних
+        await db.query(
+            'UPDATE users SET telegram_id = NULL WHERE telegram_id = ?',
+            [telegramId]
+        );
+
+        return { success: true };
+    } catch (error) {
+        console.error('Logout error:', error);
+        return { success: false, error: 'Помилка виходу' };
+    }
+}
+
 async function userHasPreferences(userId) {
     try {
-        const preferences = await db.query(  // Було: const [preferences]
+        const preferences = await db.query(
             'SELECT * FROM user_preferences WHERE user_id = ?',
             [userId]
         );
@@ -104,7 +119,7 @@ async function saveUserPreferences(userId, preferences) {
 
 async function getUserPreferences(userId) {
     try {
-        const preferences = await db.query(  // Було: const [preferences]
+        const preferences = await db.query(
             'SELECT * FROM user_preferences WHERE user_id = ?',
             [userId]
         );
@@ -188,6 +203,7 @@ async function updateUserPreferences(userId, updateData) {
 module.exports = {
     getUserByTelegramId,
     authenticateUser,
+    logoutUser,
     userHasPreferences,
     saveUserPreferences,
     getUserPreferences,

@@ -24,6 +24,30 @@ async function start(ctx) {
     }
 }
 
+async function logout(ctx) {
+    const telegramId = ctx.from.id;
+
+    // Очищаємо telegram_id з бази даних
+    const result = await authService.logoutUser(telegramId);
+
+    // Очищаємо сесію
+    ctx.session = {};
+
+    if (result.success) {
+        await ctx.reply(
+            '👋 *Ви вийшли з акаунту*\n\n' +
+            'Щоб увійти знову, використовуйте /start',
+            keyboards.authMenu()
+        );
+    } else {
+        await ctx.reply(
+            '❌ Помилка виходу з акаунту.\n\n' +
+            'Спробуйте ще раз: /logout',
+            { parse_mode: 'Markdown' }
+        );
+    }
+}
+
 async function handleAuthCallback(ctx) {
     const action = ctx.callbackQuery.data.split(':')[1];
 
@@ -99,6 +123,7 @@ async function handlePasswordInput(ctx) {
 
 module.exports = {
     start,
+    logout,
     handleAuthCallback,
     handleEmailInput,
     handlePasswordInput

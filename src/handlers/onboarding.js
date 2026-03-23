@@ -106,8 +106,15 @@ async function finishOnboarding(ctx) {
         sceneType
     });
 
+    // Редагуємо попереднє повідомлення (без клавіатури)
     await ctx.editMessageText(
         messages.onboardingComplete(),
+        { parse_mode: 'Markdown' }
+    );
+
+    // Відправляємо нове повідомлення з reply keyboard
+    await ctx.reply(
+        '🎭 Оберіть дію:',
         keyboards.mainMenu()
     );
 

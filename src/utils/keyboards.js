@@ -3,7 +3,8 @@ const { Markup } = require('telegraf');
 function mainMenu() {
     return Markup.keyboard([
         ['📅 Афіша', '🎫 Мої бронювання'],
-        ['⭐ Рекомендації', '⚙️ Налаштування']
+        ['⭐ Рекомендації', '⚙️ Налаштування'],
+        ['🚪 Вийти з акаунту']
     ]).resize();
 }
 

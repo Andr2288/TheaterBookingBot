@@ -2,7 +2,7 @@ const db = require('../config/database');
 
 async function getUpcomingShows() {
     try {
-        const shows = await db.query(  // Було: const [shows]
+        const shows = await db.query(
             'SELECT * FROM shows WHERE date > NOW() ORDER BY date ASC LIMIT 20'
         );
         return shows;
@@ -14,7 +14,7 @@ async function getUpcomingShows() {
 
 async function getShowById(showId) {
     try {
-        const shows = await db.query(  // Було: const [shows]
+        const shows = await db.query(
             'SELECT * FROM shows WHERE id = ?',
             [showId]
         );
@@ -27,7 +27,7 @@ async function getShowById(showId) {
 
 async function getBookedSeats(showId) {
     try {
-        const seats = await db.query(  // Було: const [seats]
+        const seats = await db.query(
             'SELECT seat_row, seat_number FROM bookings WHERE show_id = ?',
             [showId]
         );

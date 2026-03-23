@@ -3,7 +3,7 @@ const db = require('../config/database');
 async function getRecommendations(userId) {
     try {
         // Отримуємо ID вистав, які користувач вже забронював
-        const bookedShows = await db.query(  // Було: const [bookedShows]
+        const bookedShows = await db.query(
             'SELECT DISTINCT show_id FROM bookings WHERE user_id = ?',
             [userId]
         );
@@ -14,7 +14,7 @@ async function getRecommendations(userId) {
             : '';
 
         // 1. Популярні вистави
-        const popular = await db.query(`  // Було: const [popular]
+        const popular = await db.query(`
             SELECT s.*, COUNT(b.id) as booking_count
             FROM shows s
             LEFT JOIN bookings b ON s.id = b.show_id
@@ -25,7 +25,7 @@ async function getRecommendations(userId) {
         `);
 
         // 2. Персональні рекомендації на основі вподобань
-        const preferences = await db.query(`  // Було: const [preferences]
+        const preferences = await db.query(`
             SELECT DISTINCT s.genre, s.period_setting, s.scene_type
             FROM bookings b
             JOIN shows s ON b.show_id = s.id
@@ -75,7 +75,7 @@ async function getRecommendations(userId) {
             }
 
             if (whereConditions.length > 0) {
-                const personalShows = await db.query(`  // Було: const [personalShows]
+                const personalShows = await db.query(`
                     SELECT * FROM shows 
                     WHERE date > NOW() ${excludeClause}
                     AND (${whereConditions.join(' OR ')})

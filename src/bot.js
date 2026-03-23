@@ -8,6 +8,7 @@ const bookingHandler = require('./handlers/booking');
 const myBookingsHandler = require('./handlers/myBookings');
 const recommendationsHandler = require('./handlers/recommendations');
 const settingsHandler = require('./handlers/settings');
+const authService = require('./services/authService');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -28,6 +29,7 @@ bot.command('afisha', afishaHandler.showAfisha);
 bot.command('my', myBookingsHandler.showMyBookings);
 bot.command('recommendations', recommendationsHandler.showRecommendations);
 bot.command('settings', settingsHandler.showSettings);
+bot.command('logout', startHandler.logout);
 bot.command('help', (ctx) => {
     ctx.reply(
         '🎭 *Доступні команди:*\n\n' +
@@ -36,6 +38,7 @@ bot.command('help', (ctx) => {
         '/my - Мої бронювання\n' +
         '/recommendations - Персональні рекомендації\n' +
         '/settings - Налаштування вподобань\n' +
+        '/logout - Вийти з акаунту\n' +
         '/help - Ця довідка',
         { parse_mode: 'Markdown' }
     );
@@ -70,18 +73,42 @@ bot.on('callback_query', async (ctx) => {
 // Обробка текстових повідомлень
 bot.on('text', async (ctx) => {
     const state = ctx.session.state;
+    const text = ctx.message.text.trim();
 
+    // Обробка станів вводу
     if (state === 'awaiting_email') {
         await startHandler.handleEmailInput(ctx);
+        return;
     } else if (state === 'awaiting_password') {
         await startHandler.handlePasswordInput(ctx);
+        return;
     } else if (state === 'awaiting_seat_selection') {
         await bookingHandler.handleSeatInput(ctx);
-    } else {
-        ctx.reply(
-            '❓ Не розумію команду. Використовуйте /help для списку команд.',
-            { parse_mode: 'Markdown' }
-        );
+        return;
+    }
+
+    // Обробка кнопок головного меню
+    switch (text) {
+        case '📅 Афіша':
+            await afishaHandler.showAfisha(ctx);
+            break;
+        case '🎫 Мої бронювання':
+            await myBookingsHandler.showMyBookings(ctx);
+            break;
+        case '⭐ Рекомендації':
+            await recommendationsHandler.showRecommendations(ctx);
+            break;
+        case '⚙️ Налаштування':
+            await settingsHandler.showSettings(ctx);
+            break;
+        case '🚪 Вийти з акаунту':
+            await startHandler.logout(ctx);
+            break;
+        default:
+            ctx.reply(
+                '❓ Не розумію команду. Використовуйте /help для списку команд.',
+                { parse_mode: 'Markdown' }
+            );
     }
 });
 
