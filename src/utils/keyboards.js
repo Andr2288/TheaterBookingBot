@@ -36,58 +36,96 @@ function showActions(showId) {
     ]);
 }
 
-function zoneSelection(show, availability) {
-    const buttons = [];
+function rowSelection(show, rowsAvailability, selectedSeats = []) {
+    const rows = rowsAvailability
+        .filter((rowInfo) => rowInfo.available > 0)
+        .map((rowInfo) => [
+            Markup.button.callback(
+                `Ряд ${rowInfo.row} • ${rowInfo.price} грн • ${rowInfo.available}/${rowInfo.total} вільно`,
+                `booking:row:${rowInfo.row}`
+            )
+        ]);
 
-    const zones = {
-        high: { emoji: '🔴', price: show.price_high },
-        mid: { emoji: '🟡', price: show.price_mid },
-        low: { emoji: '🟢', price: show.price_low }
-    };
+    if (selectedSeats.length > 0) {
+        rows.push([
+            Markup.button.callback(`✅ Підтвердити (${selectedSeats.length})`, 'booking:review')
+        ]);
+        rows.push([
+            Markup.button.callback('🗑 Очистити вибір', 'booking:clear')
+        ]);
+    }
 
-    for (const [zone, data] of Object.entries(zones)) {
-        const avail = availability[zone];
-        if (avail.available > 0) {
-            buttons.push([Markup.button.callback(
-                `${data.emoji} ${avail.name} (${data.price} грн) - ${avail.available} вільних`,
-                `booking:zone:${zone}`
-            )]);
+    rows.push([Markup.button.callback('❌ Скасувати', 'booking:cancel')]);
+
+    return Markup.inlineKeyboard(rows);
+}
+
+function seatSelection(row, seats, selectedSeats = []) {
+    const rows = [];
+    let current = [];
+
+    for (const seat of seats) {
+        const label = seat.booked
+            ? `❌${seat.seat}`
+            : seat.selected
+                ? `✅${seat.seat}`
+                : `${seat.seat}`;
+
+        const callback = seat.booked
+            ? 'booking:seat_taken'
+            : seat.selected
+                ? `booking:remove:${row}:${seat.seat}`
+                : `booking:add:${row}:${seat.seat}`;
+
+        current.push(Markup.button.callback(label, callback));
+
+        if (current.length === 5) {
+            rows.push(current);
+            current = [];
         }
     }
 
-    buttons.push([Markup.button.callback('❌ Скасувати', 'booking:cancel')]);
+    if (current.length) {
+        rows.push(current);
+    }
 
-    return Markup.inlineKeyboard(buttons);
-}
+    if (selectedSeats.length > 0) {
+        rows.push([
+            Markup.button.callback(`✅ Підтвердити (${selectedSeats.length})`, 'booking:review')
+        ]);
+        rows.push([
+            Markup.button.callback('🗑 Очистити вибір', 'booking:clear')
+        ]);
+    }
 
-function backToZones() {
-    return Markup.inlineKeyboard([
-        [Markup.button.callback('◀️ Назад до вибору зони', 'booking:back_to_zones')],
-        [Markup.button.callback('❌ Скасувати бронювання', 'booking:cancel')]
+    rows.push([
+        Markup.button.callback('◀️ Назад до рядів', 'booking:back_to_rows'),
+        Markup.button.callback('❌ Скасувати', 'booking:cancel')
     ]);
+
+    return Markup.inlineKeyboard(rows);
 }
 
-function confirmBooking() {
+function reviewBooking() {
     return Markup.inlineKeyboard([
-        [Markup.button.callback('✅ Підтвердити', 'booking:confirm')],
-        [Markup.button.callback('◀️ Змінити місце', 'booking:back_to_zones')],
+        [Markup.button.callback('✅ Підтвердити бронювання', 'booking:confirm')],
+        [Markup.button.callback('◀️ Продовжити вибір місць', 'booking:back_to_rows')],
+        [Markup.button.callback('🗑 Очистити вибір', 'booking:clear')],
         [Markup.button.callback('❌ Скасувати', 'booking:cancel')]
     ]);
 }
 
 function bookingActions(bookingId, showDate) {
     const canCancel = new Date(showDate) > new Date();
-
     const buttons = [];
 
     if (canCancel) {
-        buttons.push([Markup.button.callback(
-            '❌ Скасувати бронювання',
-            `cancel_booking:${bookingId}`
-        )]);
+        buttons.push([
+            Markup.button.callback('❌ Скасувати бронювання', `cancel_booking:${bookingId}`)
+        ]);
     }
 
-    return Markup.inlineKeyboard(buttons);
+    return buttons.length ? Markup.inlineKeyboard(buttons) : undefined;
 }
 
 function onboardingGenres(selected = []) {
@@ -207,18 +245,19 @@ function settingsPeriods(selected = []) {
     return Markup.inlineKeyboard(rows);
 }
 
-function settingsScene() {
+function settingsScene(selected) {
     return Markup.inlineKeyboard([
-        [Markup.button.callback('🏛 Основна сцена', 'settings:scene:main')],
-        [Markup.button.callback('🎪 Камерна сцена', 'settings:scene:chamber')],
-        [Markup.button.callback('🤷 Без різниці', 'settings:scene:any')],
-        [Markup.button.callback('Пропустити ⏭', 'settings:skip')]
+        [Markup.button.callback(`${selected === 'main' ? '✅ ' : ''}🏛 Основна сцена`, 'settings:scene:main')],
+        [Markup.button.callback(`${selected === 'chamber' ? '✅ ' : ''}🎪 Камерна сцена`, 'settings:scene:chamber')],
+        [Markup.button.callback(`${selected === 'any' ? '✅ ' : ''}🤷 Без різниці`, 'settings:scene:any')],
+        [Markup.button.callback('Зберегти ✅', 'settings:save')]
     ]);
 }
 
 function settingsMenu() {
     return Markup.inlineKeyboard([
-        [Markup.button.callback('✏️ Редагувати налаштування', 'settings:edit_preferences')]
+        [Markup.button.callback('✏️ Редагувати вподобання', 'settings:edit')],
+        [Markup.button.callback('🗑 Очистити все', 'settings:clear')]
     ]);
 }
 
@@ -227,9 +266,9 @@ module.exports = {
     authMenu,
     afishaList,
     showActions,
-    zoneSelection,
-    backToZones,
-    confirmBooking,
+    rowSelection,
+    seatSelection,
+    reviewBooking,
     bookingActions,
     onboardingGenres,
     onboardingPeriods,

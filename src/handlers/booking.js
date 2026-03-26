@@ -4,11 +4,103 @@ const authService = require('../services/authService');
 const keyboards = require('../utils/keyboards');
 const messages = require('../utils/messages');
 
+function getSelectedSeats(ctx) {
+    return ctx.session?.booking?.selectedSeats || [];
+}
+
+async function showRowsStep(ctx, showOverride = null) {
+    const booking = ctx.session.booking;
+    const show = showOverride || booking?.show;
+
+    if (!booking || !show) {
+        await ctx.answerCbQuery('❌ Сесію бронювання втрачено');
+        return;
+    }
+
+    const bookedSeats = await showService.getBookedSeats(show.id);
+    const rowsAvailability = showService.getRowsAvailability(show, bookedSeats);
+
+    ctx.session.booking = {
+        ...booking,
+        show,
+        step: 'rows',
+        currentRow: null
+    };
+
+    await ctx.editMessageText(
+        messages.selectRows(show, rowsAvailability, getSelectedSeats(ctx)),
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.rowSelection(show, rowsAvailability, getSelectedSeats(ctx))
+        }
+    );
+}
+
+async function showSeatsStep(ctx, showOverride, row) {
+    const booking = ctx.session.booking;
+    const show = showOverride || booking?.show;
+
+    if (!booking || !show) {
+        await ctx.answerCbQuery('❌ Сесію бронювання втрачено');
+        return;
+    }
+
+    const bookedSeats = await showService.getBookedSeats(show.id);
+    const seats = showService.getSeatsInRow(show, row, bookedSeats, getSelectedSeats(ctx));
+    const price = showService.getSeatPrice(show, row);
+
+    ctx.session.booking = {
+        ...booking,
+        show,
+        currentRow: row,
+        step: 'seats'
+    };
+
+    await ctx.editMessageText(
+        messages.selectSeat(show, row, seats, price, getSelectedSeats(ctx)),
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.seatSelection(row, seats, getSelectedSeats(ctx))
+        }
+    );
+}
+
+async function showReviewStep(ctx) {
+    const booking = ctx.session.booking;
+    if (!booking || !booking.show) {
+        await ctx.answerCbQuery('❌ Сесію бронювання втрачено');
+        return;
+    }
+
+    if (!booking.selectedSeats || booking.selectedSeats.length === 0) {
+        await ctx.answerCbQuery('❌ Спочатку оберіть хоча б одне місце');
+        return;
+    }
+
+    const totalPrice = showService.calculateTotal(booking.show, booking.selectedSeats);
+
+    ctx.session.booking = {
+        ...booking,
+        step: 'review'
+    };
+
+    await ctx.editMessageText(
+        messages.reviewBooking(booking.show, booking.selectedSeats, totalPrice),
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.reviewBooking()
+        }
+    );
+}
+
+function sortSeats(seats) {
+    return seats.slice().sort((a, b) => a.row - b.row || a.seat - b.seat);
+}
+
 async function handleCallback(ctx) {
     const data = ctx.callbackQuery.data;
     const parts = data.split(':');
     const action = parts[1];
-    const value = parts[2];
 
     const telegramId = ctx.from.id;
     const user = await authService.getUserByTelegramId(telegramId);
@@ -23,52 +115,98 @@ async function handleCallback(ctx) {
         return;
     }
 
-    const { showId, show } = ctx.session.booking;
+    const booking = ctx.session.booking;
+    const { showId, show } = booking;
 
-    if (action === 'zone') {
-        ctx.session.booking.zone = value;
-        ctx.session.booking.step = 'seat';
-        ctx.session.state = 'awaiting_seat_selection';
+    if (action === 'row') {
+        const row = parseInt(parts[2], 10);
+        await showSeatsStep(ctx, show, row);
+        return;
+    }
 
-        const bookedSeats = await showService.getBookedSeats(showId);
-        const availableSeats = showService.getAvailableSeatsInZone(
-            show.scene_type,
-            value,
-            bookedSeats
-        );
+    if (action === 'add') {
+        const row = parseInt(parts[2], 10);
+        const seat = parseInt(parts[3], 10);
 
-        await ctx.editMessageText(
-            messages.selectSeat(show, value, availableSeats),
-            keyboards.backToZones()
-        );
-    } else if (action === 'back_to_zones') {
-        ctx.session.booking.step = 'zone';
-        ctx.session.state = null;
+        if (booking.selectedSeats.length >= 6) {
+            await ctx.answerCbQuery('❌ Максимум 6 місць за одне бронювання');
+            return;
+        }
 
         const bookedSeats = await showService.getBookedSeats(showId);
-        const availability = showService.calculateAvailability(show.scene_type, bookedSeats);
+        const isBooked = bookedSeats.some((item) => item.seat_row === row && item.seat_number === seat);
+        if (isBooked) {
+            await ctx.answerCbQuery('❌ Це місце вже зайняте');
+            await showSeatsStep(ctx, show, row);
+            return;
+        }
 
-        await ctx.editMessageText(
-            messages.selectZone(show),
-            keyboards.zoneSelection(show, availability)
+        const alreadySelected = booking.selectedSeats.some((item) => item.row === row && item.seat === seat);
+        if (!alreadySelected) {
+            ctx.session.booking.selectedSeats = sortSeats([
+                ...booking.selectedSeats,
+                { row, seat }
+            ]);
+        }
+
+        await showSeatsStep(ctx, show, row);
+        return;
+    }
+
+    if (action === 'remove') {
+        const row = parseInt(parts[2], 10);
+        const seat = parseInt(parts[3], 10);
+
+        ctx.session.booking.selectedSeats = booking.selectedSeats.filter(
+            (item) => !(item.row === row && item.seat === seat)
         );
-    } else if (action === 'confirm') {
 
-        const { zone, row, seat } = ctx.session.booking;
+        await showSeatsStep(ctx, show, row);
+        return;
+    }
 
+    if (action === 'seat_taken') {
+        await ctx.answerCbQuery('❌ Це місце вже зайняте');
+        return;
+    }
+
+    if (action === 'back_to_rows') {
+        await showRowsStep(ctx, show);
+        return;
+    }
+
+    if (action === 'review') {
+        await showReviewStep(ctx);
+        return;
+    }
+
+    if (action === 'clear') {
+        ctx.session.booking.selectedSeats = [];
+        if (booking.currentRow) {
+            await showSeatsStep(ctx, show, booking.currentRow);
+        } else {
+            await showRowsStep(ctx, show);
+        }
+        return;
+    }
+
+    if (action === 'confirm') {
+        const selectedSeats = booking.selectedSeats || [];
         const result = await bookingService.createBooking(
             user.id,
             showId,
-            parseInt(row),
-            parseInt(seat),
-            show,
-            zone
+            selectedSeats,
+            show
         );
 
         if (result.success) {
-            await ctx.editMessageText(
-                messages.bookingSuccess(show, row, seat, result.price),
-                keyboards.mainMenu()
+            await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+            await ctx.reply(
+                messages.bookingSuccess(show, selectedSeats, result.totalPrice),
+                {
+                    parse_mode: 'Markdown',
+                    ...keyboards.mainMenu()
+                }
             );
 
             delete ctx.session.booking;
@@ -76,72 +214,30 @@ async function handleCallback(ctx) {
         } else {
             await ctx.editMessageText(
                 messages.bookingError(result.error),
-                keyboards.backToZones()
+                {
+                    parse_mode: 'Markdown',
+                    ...keyboards.reviewBooking()
+                }
             );
         }
-    } else if (action === 'cancel') {
+        return;
+    }
+
+    if (action === 'cancel') {
         delete ctx.session.booking;
         ctx.session.state = null;
 
-        await ctx.editMessageText(
-            '❌ Бронювання скасовано.',
-            keyboards.mainMenu()
-        );
+        await ctx.editMessageText('❌ Бронювання скасовано.');
+        await ctx.reply('Оберіть наступну дію:', keyboards.mainMenu());
     }
 }
 
 async function handleSeatInput(ctx) {
-    const text = ctx.message.text.trim();
-
-    if (!ctx.session.booking) {
-        await ctx.reply('❌ Помилка сесії. Почніть спочатку: /afisha');
-        return;
-    }
-
-    const { show, zone } = ctx.session.booking;
-
-    const match = text.match(/(\d+)[-\s](\d+)/);
-
-    if (!match) {
-        await ctx.reply(
-            '❌ Некоректний формат.\n' +
-            'Введіть номер ряду та місця, наприклад: *5-10* або *5 10*',
-            { parse_mode: 'Markdown' }
-        );
-        return;
-    }
-
-    const row = parseInt(match[1]);
-    const seat = parseInt(match[2]);
-
-    const validation = showService.validateSeat(show.scene_type, zone, row, seat);
-
-    if (!validation.valid) {
-        await ctx.reply(`❌ ${validation.error}\nСпробуйте ще раз:`);
-        return;
-    }
-
-    const bookedSeats = await showService.getBookedSeats(ctx.session.booking.showId);
-    const isBooked = bookedSeats.some(s => s.seat_row === row && s.seat_number === seat);
-
-    if (isBooked) {
-        await ctx.reply(`❌ Місце ${row}-${seat} вже заброньовано.\nОберіть інше:`);
-        return;
-    }
-
-    ctx.session.booking.row = row;
-    ctx.session.booking.seat = seat;
-    ctx.session.state = null;
-
-    const price = showService.calculatePrice(show, row);
-
-    await ctx.reply(
-        messages.confirmBooking(show, row, seat, price),
-        keyboards.confirmBooking()
-    );
+    await ctx.reply('Тепер місця обираються кнопками, як у схемі на сайті. Вручну вводити ряд і місце не потрібно.');
 }
 
 module.exports = {
     handleCallback,
-    handleSeatInput
+    handleSeatInput,
+    showRowsStep
 };

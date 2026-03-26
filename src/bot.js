@@ -7,7 +7,6 @@ const bookingHandler = require('./handlers/booking');
 const myBookingsHandler = require('./handlers/myBookings');
 const recommendationsHandler = require('./handlers/recommendations');
 const settingsHandler = require('./handlers/settings');
-const authService = require('./services/authService');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -52,7 +51,7 @@ bot.on('callback_query', async (ctx) => {
             await afishaHandler.handleShowCallback(ctx);
         } else if (data.startsWith('booking:')) {
             await bookingHandler.handleCallback(ctx);
-        } else if (data === 'cancel_booking') {
+        } else if (data.startsWith('cancel_booking:')) {
             await myBookingsHandler.handleCancelCallback(ctx);
         } else if (data.startsWith('settings:')) {
             await settingsHandler.handleCallback(ctx);
@@ -61,7 +60,9 @@ bot.on('callback_query', async (ctx) => {
         await ctx.answerCbQuery();
     } catch (error) {
         console.error('Callback error:', error);
-        await ctx.answerCbQuery('❌ Помилка. Спробуйте ще раз.');
+        try {
+            await ctx.answerCbQuery('❌ Помилка. Спробуйте ще раз.');
+        } catch (_) {}
     }
 });
 
@@ -72,10 +73,14 @@ bot.on('text', async (ctx) => {
     if (state === 'awaiting_email') {
         await startHandler.handleEmailInput(ctx);
         return;
-    } else if (state === 'awaiting_password') {
+    }
+
+    if (state === 'awaiting_password') {
         await startHandler.handlePasswordInput(ctx);
         return;
-    } else if (state === 'awaiting_seat_selection') {
+    }
+
+    if (state === 'awaiting_seat_selection') {
         await bookingHandler.handleSeatInput(ctx);
         return;
     }
@@ -97,7 +102,7 @@ bot.on('text', async (ctx) => {
             await startHandler.logout(ctx);
             break;
         default:
-            ctx.reply(
+            await ctx.reply(
                 '❓ Не розумію команду. Використовуйте /help для списку команд.',
                 { parse_mode: 'Markdown' }
             );

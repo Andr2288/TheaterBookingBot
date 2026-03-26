@@ -16,8 +16,7 @@ async function showMyBookings(ctx) {
 
     if (bookings.length === 0) {
         await ctx.reply(
-            '📋 У вас поки немає бронювань.\n\n' +
-            'Перегляньте афішу: /afisha',
+            '📋 У вас поки немає бронювань.\n\nПерегляньте афішу: /afisha',
             keyboards.mainMenu()
         );
         return;
@@ -25,13 +24,19 @@ async function showMyBookings(ctx) {
 
     await ctx.reply(
         messages.myBookingsHeader(bookings.length),
-        keyboards.mainMenu()
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.mainMenu()
+        }
     );
 
     for (const booking of bookings) {
+        const keyboard = keyboards.bookingActions(booking.booking_id, booking.show_date);
         await ctx.reply(
             messages.bookingCard(booking),
-            keyboards.bookingActions(booking.booking_id, booking.show_date)
+            keyboard
+                ? { parse_mode: 'Markdown', ...keyboard }
+                : { parse_mode: 'Markdown' }
         );
     }
 }
@@ -39,7 +44,7 @@ async function showMyBookings(ctx) {
 async function handleCancelCallback(ctx) {
     const data = ctx.callbackQuery.data;
     const parts = data.split(':');
-    const bookingId = parseInt(parts[1]);
+    const bookingId = parseInt(parts[1], 10);
 
     const telegramId = ctx.from.id;
     const user = await authService.getUserByTelegramId(telegramId);
@@ -53,8 +58,7 @@ async function handleCancelCallback(ctx) {
 
     if (result.success) {
         await ctx.editMessageText(
-            '✅ Бронювання скасовано.\n\n' +
-            '_Перегляньте оновлений список: /my_',
+            '✅ Бронювання скасовано.\n\n_Оновлений список: /my_',
             { parse_mode: 'Markdown' }
         );
     } else {

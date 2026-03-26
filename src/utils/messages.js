@@ -37,8 +37,7 @@ function onboardingScene() {
 
 function onboardingComplete() {
     return '✅ *Налаштування завершено!*\n\n' +
-        'Ми підберемо для вас найкращі вистави на основі ваших вподобань.\n\n' +
-        'Перегляньте персональні рекомендації: /recommendations';
+        'Перегляньте афішу з пропозиціями: /afisha';
 }
 
 function afishaHeader(count) {
@@ -50,62 +49,103 @@ function afishaHeader(count) {
 function showDetails(show) {
     const date = formatters.formatDate(show.date);
     const sceneType = show.scene_type === 'main' ? 'Основна сцена' : 'Камерна сцена';
+    const pricingHint = show.scene_type === 'main'
+        ? '1–3 ряд — висока ціна, 4–7 — середня, 8–10 — нижча'
+        : '1 ряд — висока ціна, 2–3 — середня, 4 — нижча';
 
     return `🎭 *${show.title}*\n\n` +
         `📅 ${date}\n` +
         `🏛 ${sceneType}\n` +
         `🎪 ${show.genre} • ${show.period_setting}\n\n` +
         `💰 *Ціни:*\n` +
-        `🔴 Високі: ${show.price_high} грн\n` +
-        `🟡 Середні: ${show.price_mid} грн\n` +
-        `🟢 Низькі: ${show.price_low} грн\n\n` +
+        `• ${show.price_high} грн\n` +
+        `• ${show.price_mid} грн\n` +
+        `• ${show.price_low} грн\n` +
+        `_${pricingHint}_\n\n` +
         (show.description ? `📝 ${show.description}\n\n` : '') +
         'Бажаєте забронювати квитки?';
 }
 
-function selectZone(show) {
-    return `🎫 *Бронювання квитків*\n\n` +
-        `🎭 ${show.title}\n` +
-        `📅 ${formatters.formatDate(show.date)}\n\n` +
-        '1️⃣ *Оберіть зону:*';
+function formatSelectedSeats(selectedSeats) {
+    if (!selectedSeats || selectedSeats.length === 0) {
+        return 'Ще нічого не обрано';
+    }
+
+    return selectedSeats
+        .slice()
+        .sort((a, b) => a.row - b.row || a.seat - b.seat)
+        .map((seat) => `Ряд ${seat.row}, місце ${seat.seat}`)
+        .join('; ');
 }
 
-function selectSeat(show, zone, availableSeats) {
-    const zoneNames = {
-        high: 'Високі ціни',
-        mid: 'Середні ціни',
-        low: 'Низькі ціни'
-    };
+function selectRows(show, rowsAvailability, selectedSeats = []) {
+    const sceneName = show.scene_type === 'main' ? 'Основна сцена' : 'Камерна сцена';
+    const selectedCount = selectedSeats.length;
 
     let message = `🎫 *Бронювання квитків*\n\n` +
         `🎭 ${show.title}\n` +
-        `📍 Зона: ${zoneNames[zone]}\n\n` +
-        '2️⃣ *Доступні місця:*\n\n';
+        `📅 ${formatters.formatDate(show.date)}\n` +
+        `🏛 ${sceneName}\n\n` +
+        `Оберіть ряд. Логіка цін така сама, як на сайті.\n\n` +
+        `Обрано місць: *${selectedCount}/6*\n` +
+        `Місця: ${formatSelectedSeats(selectedSeats)}\n\n` +
+        `*Доступні ряди:*\n`;
 
-    availableSeats.forEach(({ row, seats }) => {
-        message += `Ряд ${row}: ${seats}\n`;
+    rowsAvailability.forEach((rowInfo) => {
+        message += `• Ряд ${rowInfo.row} — ${rowInfo.price} грн — ${rowInfo.available}/${rowInfo.total} вільно\n`;
     });
-
-    message += '\n📝 Введіть номер ряду та місця (наприклад: *5-10*)';
 
     return message;
 }
 
-function confirmBooking(show, row, seat, price) {
-    return `✅ *Підтвердження бронювання*\n\n` +
+function selectSeat(show, row, seats, price, selectedSeats = []) {
+    const freeSeats = seats
+        .filter((seatItem) => !seatItem.booked)
+        .map((seatItem) => seatItem.selected ? `✅${seatItem.seat}` : `${seatItem.seat}`)
+        .join(', ');
+
+    return `🎫 *Бронювання квитків*\n\n` +
         `🎭 ${show.title}\n` +
         `📅 ${formatters.formatDate(show.date)}\n` +
-        `💺 Ряд ${row}, місце ${seat}\n` +
-        `💰 Ціна: ${price} грн\n\n` +
+        `💺 Ряд ${row}\n` +
+        `💰 Ціна за місце в цьому ряду: ${price} грн\n\n` +
+        `Обрано місць: *${selectedSeats.length}/6*\n` +
+        `Місця: ${formatSelectedSeats(selectedSeats)}\n\n` +
+        'Натискайте місця нижче.\n' +
+        '• число — вільне\n' +
+        '• ✅число — вже обране вами\n' +
+        '• ❌число — зайняте\n\n' +
+        `Вільні місця в ряду: ${freeSeats || 'немає'}`;
+}
+
+function reviewBooking(show, selectedSeats, totalPrice) {
+    return `✅ *Підтвердження бронювання*\n\n` +
+        `🎭 ${show.title}\n` +
+        `📅 ${formatters.formatDate(show.date)}\n\n` +
+        `Обрані місця (${selectedSeats.length}):\n` +
+        `${selectedSeats
+            .slice()
+            .sort((a, b) => a.row - b.row || a.seat - b.seat)
+            .map((seat) => `• Ряд ${seat.row}, місце ${seat.seat} — ${show.scene_type === 'chamber'
+                ? (seat.row === 1 ? show.price_high : seat.row <= 3 ? show.price_mid : show.price_low)
+                : (seat.row <= 3 ? show.price_high : seat.row <= 7 ? show.price_mid : show.price_low)
+            } грн`)
+            .join('\n')}\n\n` +
+        `💰 *Загальна сума: ${totalPrice} грн*\n\n` +
         'Підтвердити бронювання?';
 }
 
-function bookingSuccess(show, row, seat, price) {
+function bookingSuccess(show, selectedSeats, totalPrice) {
     return `🎉 *Бронювання успішне!*\n\n` +
         `🎭 ${show.title}\n` +
-        `📅 ${formatters.formatDate(show.date)}\n` +
-        `💺 Ряд ${row}, місце ${seat}\n` +
-        `💰 Ціна: ${price} грн\n\n` +
+        `📅 ${formatters.formatDate(show.date)}\n\n` +
+        `Обрані місця (${selectedSeats.length}):\n` +
+        `${selectedSeats
+            .slice()
+            .sort((a, b) => a.row - b.row || a.seat - b.seat)
+            .map((seat) => `• Ряд ${seat.row}, місце ${seat.seat}`)
+            .join('\n')}\n\n` +
+        `💰 Загальна сума: ${totalPrice} грн\n\n` +
         '⚠️ *Важливо:*\n' +
         '• Прийдіть за 30 хвилин до початку\n' +
         '• Оплата на касі театру\n' +
@@ -118,8 +158,7 @@ function bookingError(error) {
 }
 
 function myBookingsHeader(count) {
-    return `🎫 *Мої бронювання*\n\n` +
-        `Всього: ${count}\n\n`;
+    return `🎫 *Мої бронювання*\n\nВсього бронювань: ${count}`;
 }
 
 function bookingCard(booking) {
@@ -130,19 +169,18 @@ function bookingCard(booking) {
     return `${isPast ? '📜' : '🎫'} *${booking.show_title}*\n\n` +
         `📅 ${date}\n` +
         `🏛 ${sceneType}\n` +
-        `💺 Ряд ${booking.seat_row}, місце ${booking.seat_number}\n` +
-        `💰 ${booking.price} грн\n\n` +
+        `💺 ${booking.seats}\n` +
+        `🎟 Кількість місць: ${booking.seats_count}\n` +
+        `💰 ${booking.total_price} грн\n\n` +
         (isPast ? '✅ Вистава відбулася' : '⏰ Очікується');
 }
 
 function personalRecommendationsHeader() {
-    return '⭐ *Персональні рекомендації*\n\n' +
-        'На основі ваших вподобань:';
+    return '⭐ *Персональні рекомендації*\n\nНа основі ваших вподобань:';
 }
 
 function popularRecommendationsHeader() {
-    return '🔥 *Популярні вистави*\n\n' +
-        'Що бронюють інші відвідувачі:';
+    return '🔥 *Популярні вистави*\n\nЩо бронюють інші відвідувачі:';
 }
 
 function recommendationCard(show, isPersonal) {
@@ -161,56 +199,53 @@ function settingsMenu(preferences) {
     if (preferences.genres && preferences.genres.length > 0) {
         message += `🎭 *Жанри:* ${preferences.genres.join(', ')}\n\n`;
     } else {
-        message += `🎭 *Жанри:* _не обрано_\n\n`;
+        message += '🎭 *Жанри:* _не обрано_\n\n';
     }
 
     if (preferences.periods && preferences.periods.length > 0) {
         message += `⏰ *Періоди:* ${preferences.periods.join(', ')}\n\n`;
     } else {
-        message += `⏰ *Періоди:* _не обрано_\n\n`;
+        message += '⏰ *Періоди:* _не обрано_\n\n';
     }
 
     if (preferences.sceneType) {
         const scene = preferences.sceneType === 'main' ? 'Основна сцена' :
-                      preferences.sceneType === 'chamber' ? 'Камерна сцена' : 'Без різниці';
+            preferences.sceneType === 'chamber' ? 'Камерна сцена' : 'Без різниці';
         message += `🎪 *Сцена:* ${scene}\n\n`;
     } else {
-        message += `🎪 *Сцена:* _не обрано_\n\n`;
+        message += '🎪 *Сцена:* _не обрано_\n\n';
     }
 
     message += '💡 Ці налаштування впливають на ваші персональні рекомендації.';
-
     return message;
 }
 
 function editPreferencesStart(currentPreferences) {
     let message = '✏️ *Редагування налаштувань*\n\n';
-
     message += '📋 *Поточні налаштування:*\n';
 
     if (currentPreferences.genres && currentPreferences.genres.length > 0) {
         message += `🎭 Жанри: ${currentPreferences.genres.join(', ')}\n`;
     } else {
-        message += `🎭 Жанри: _не обрано_\n`;
+        message += '🎭 Жанри: _не обрано_\n';
     }
 
     if (currentPreferences.periods && currentPreferences.periods.length > 0) {
         message += `⏰ Періоди: ${currentPreferences.periods.join(', ')}\n`;
     } else {
-        message += `⏰ Періоди: _не обрано_\n`;
+        message += '⏰ Періоди: _не обрано_\n';
     }
 
     if (currentPreferences.sceneType) {
         const scene = currentPreferences.sceneType === 'main' ? 'Основна сцена' :
-                      currentPreferences.sceneType === 'chamber' ? 'Камерна сцена' : 'Без різниці';
+            currentPreferences.sceneType === 'chamber' ? 'Камерна сцена' : 'Без різниці';
         message += `🎪 Сцена: ${scene}\n`;
     } else {
-        message += `🎪 Сцена: _не обрано_\n`;
+        message += '🎪 Сцена: _не обрано_\n';
     }
 
     message += '\n📝 *Крок 1/3: Жанри*\n\n';
     message += 'Які жанри вам подобаються? (можна обрати декілька)';
-
     return message;
 }
 
@@ -218,15 +253,15 @@ function reminderMessage(booking) {
     const date = formatters.formatDate(booking.show_date);
 
     return `🔔 *НАГАДУВАННЯ*\n\n` +
-        `Через 24 години у вас вистава!\n\n` +
+        'Через 24 години у вас вистава!\n\n' +
         `🎭 ${booking.show_title}\n` +
         `📅 ${date}\n` +
-        `💺 Ряд ${booking.seat_row}, місце ${booking.seat_number}\n` +
-        `💰 ${booking.price} грн\n\n` +
-        `⚠️ *Не забудьте:*\n` +
-        `• Прийти за 30 хвилин\n` +
-        `• Взяти документ\n` +
-        `• Оплатити на касі`;
+        `💺 ${booking.seats || `Ряд ${booking.seat_row}, місце ${booking.seat_number}`}\n` +
+        `💰 ${booking.total_price || booking.price} грн\n\n` +
+        '⚠️ *Не забудьте:*\n' +
+        '• Прийти за 30 хвилин\n' +
+        '• Взяти документ\n' +
+        '• Оплатити на касі';
 }
 
 module.exports = {
@@ -239,9 +274,9 @@ module.exports = {
     onboardingComplete,
     afishaHeader,
     showDetails,
-    selectZone,
+    selectRows,
     selectSeat,
-    confirmBooking,
+    reviewBooking,
     bookingSuccess,
     bookingError,
     myBookingsHeader,

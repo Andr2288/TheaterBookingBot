@@ -1,44 +1,81 @@
 const db = require('../config/database');
+const showService = require('./showService');
 
-async function createBooking(userId, showId, row, seat, show, zone) {
+async function createBooking(userId, showId, seats, show) {
     try {
-        const existing = await db.query(
-            'SELECT id FROM bookings WHERE show_id = ? AND seat_row = ? AND seat_number = ?',
-            [showId, row, seat]
-        );
-
-        if (existing.length > 0) {
-            return { success: false, error: 'Місце вже заброньовано' };
+        if (!Array.isArray(seats) || seats.length === 0) {
+            return { success: false, error: 'Оберіть хоча б одне місце' };
         }
 
-        const price = calculatePrice(show, row);
+        if (seats.length > 6) {
+            return { success: false, error: 'Максимум 6 місць за одне бронювання' };
+        }
 
-        await db.query(
-            'INSERT INTO bookings (user_id, show_id, seat_row, seat_number, price) VALUES (?, ?, ?, ?, ?)',
-            [userId, showId, row, seat, price]
-        );
+        const normalizedSeats = seats.map((seat) => ({
+            row: Number(seat.row),
+            seat: Number(seat.seat)
+        }));
 
-        await db.query(
-            'INSERT INTO user_interactions (user_id, show_id, interaction_type) VALUES (?, ?, ?)',
-            [userId, showId, 'attempt_book']
-        );
+        const uniqueKeys = new Set();
+        for (const seat of normalizedSeats) {
+            const validation = showService.validateSeat(show.scene_type, seat.row, seat.seat);
+            if (!validation.valid) {
+                return { success: false, error: validation.error };
+            }
 
-        return { success: true, price };
+            const key = `${seat.row}:${seat.seat}`;
+            if (uniqueKeys.has(key)) {
+                return { success: false, error: `Місце ${seat.row}-${seat.seat} обране двічі` };
+            }
+            uniqueKeys.add(key);
+        }
+
+        const result = await db.withTransaction(async (connection) => {
+            for (const seat of normalizedSeats) {
+                const [existing] = await connection.query(
+                    'SELECT id FROM bookings WHERE show_id = ? AND seat_row = ? AND seat_number = ?',
+                    [showId, seat.row, seat.seat]
+                );
+
+                if (existing.length > 0) {
+                    throw new Error(`Місце ${seat.row}-${seat.seat} вже заброньоване`);
+                }
+            }
+
+            const bookingIds = [];
+            let totalPrice = 0;
+
+            for (const seat of normalizedSeats) {
+                const price = showService.getSeatPrice(show, seat.row);
+                totalPrice += price;
+
+                const [insertResult] = await connection.query(
+                    'INSERT INTO bookings (user_id, show_id, seat_row, seat_number, price) VALUES (?, ?, ?, ?, ?)',
+                    [userId, showId, seat.row, seat.seat, price]
+                );
+
+                if (insertResult && insertResult.insertId) {
+                    bookingIds.push(insertResult.insertId);
+                }
+            }
+
+            await connection.query(
+                'INSERT INTO user_interactions (user_id, show_id, interaction_type) VALUES (?, ?, ?)',
+                [userId, showId, 'attempt_book']
+            );
+
+            return {
+                success: true,
+                bookingIds,
+                bookingId: bookingIds[0] || null,
+                totalPrice
+            };
+        });
+
+        return result;
     } catch (error) {
         console.error('Booking error:', error);
-        return { success: false, error: 'Помилка бронювання' };
-    }
-}
-
-function calculatePrice(show, row) {
-    if (show.scene_type === 'chamber') {
-        if (row === 1) return parseFloat(show.price_high);
-        if (row <= 3) return parseFloat(show.price_mid);
-        return parseFloat(show.price_low);
-    } else {
-        if (row <= 3) return parseFloat(show.price_high);
-        if (row <= 7) return parseFloat(show.price_mid);
-        return parseFloat(show.price_low);
+        return { success: false, error: error.message || 'Помилка бронювання' };
     }
 }
 
@@ -46,23 +83,31 @@ async function getUserBookings(userId) {
     try {
         const bookings = await db.query(`
             SELECT 
-                b.id as booking_id,
-                b.seat_row,
-                b.seat_number,
-                b.price,
+                MIN(b.id) as booking_id,
+                b.show_id,
                 b.created_at as booking_date,
                 s.title as show_title,
                 s.date as show_date,
                 s.genre,
                 s.scene_type,
-                s.poster
+                s.poster,
+                SUM(b.price) as total_price,
+                COUNT(*) as seats_count,
+                GROUP_CONCAT(CONCAT('Ряд ', b.seat_row, ', місце ', b.seat_number) ORDER BY b.seat_row, b.seat_number SEPARATOR '; ') as seats
             FROM bookings b
             JOIN shows s ON b.show_id = s.id
             WHERE b.user_id = ?
-            ORDER BY s.date ASC
+            GROUP BY b.show_id, b.created_at, s.title, s.date, s.genre, s.scene_type, s.poster
+            ORDER BY b.created_at DESC
         `, [userId]);
 
-        return bookings;
+        return bookings.map((booking) => ({
+            ...booking,
+            booking_id: Number(booking.booking_id),
+            show_id: Number(booking.show_id),
+            total_price: Number(booking.total_price),
+            seats_count: Number(booking.seats_count)
+        }));
     } catch (error) {
         console.error('Error getting bookings:', error);
         return [];

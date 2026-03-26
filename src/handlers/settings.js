@@ -15,7 +15,10 @@ async function showSettings(ctx) {
 
     await ctx.reply(
         messages.settingsMenu(preferences),
-        keyboards.settingsMenu()
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.settingsMenu()
+        }
     );
 }
 
@@ -29,95 +32,135 @@ async function handleCallback(ctx) {
     const user = await authService.getUserByTelegramId(telegramId);
 
     if (!user) {
-        await ctx.answerCbQuery('❌ Помилка авторізації');
+        await ctx.answerCbQuery('❌ Помилка авторизації');
         return;
     }
 
-    if (action === 'edit_preferences') {
+    if (action === 'edit') {
         await startPreferencesEdit(ctx, user);
         return;
     }
 
-    if (!ctx.session.settingsOnboarding) {
-        await ctx.answerCbQuery('❌ Помилка сесії. Почніть налаштування заново: /settings');
+    if (action === 'clear') {
+        await clearPreferences(ctx, user.id);
         return;
     }
 
-    const step = ctx.session.settingsOnboarding.step;
+    if (!ctx.session.settingsOnboarding) {
+        await ctx.answerCbQuery('❌ Помилка сесії. Відкрийте /settings ще раз');
+        return;
+    }
+
+    const flow = ctx.session.settingsOnboarding;
+    const step = flow.step;
 
     if (step === 1) {
         if (action === 'genre') {
-            const genres = ctx.session.settingsOnboarding.genres;
-            const index = genres.indexOf(value);
-
-            if (index > -1) {
-                genres.splice(index, 1);
-            } else {
-                genres.push(value);
-            }
+            toggleValue(flow.genres, value);
 
             try {
-                await ctx.editMessageReplyMarkup(keyboards.settingsGenres(genres).reply_markup);
+                await ctx.editMessageReplyMarkup(
+                    keyboards.settingsGenres(flow.genres).reply_markup
+                );
             } catch (error) {
                 if (!error.description?.includes('message is not modified')) {
                     throw error;
                 }
             }
-        } else if (action === 'next' && value === 'genres') {
-            if (ctx.session.settingsOnboarding.genres.length === 0) {
-                await ctx.answerCbQuery('❗ Оберіть хоча б один жанр');
-                return;
-            }
+            return;
+        }
 
-            ctx.session.settingsOnboarding.step = 2;
+        if (action === 'next' && value === 'genres') {
+            flow.step = 2;
+
             await ctx.editMessageText(
                 messages.onboardingPeriods(),
-                keyboards.settingsPeriods(ctx.session.settingsOnboarding.periods)
+                {
+                    parse_mode: 'Markdown',
+                    ...keyboards.settingsPeriods(flow.periods)
+                }
             );
-        } else if (action === 'skip') {
-            await finishPreferencesEdit(ctx, user.id);
+            return;
         }
-    } else if (step === 2) {
 
+        if (action === 'skip') {
+            flow.step = 2;
+
+            await ctx.editMessageText(
+                messages.onboardingPeriods(),
+                {
+                    parse_mode: 'Markdown',
+                    ...keyboards.settingsPeriods(flow.periods)
+                }
+            );
+            return;
+        }
+    }
+
+    if (step === 2) {
         if (action === 'period') {
-            const periods = ctx.session.settingsOnboarding.periods;
-            const index = periods.indexOf(value);
-
-            if (index > -1) {
-                periods.splice(index, 1);
-            } else {
-                periods.push(value);
-            }
+            toggleValue(flow.periods, value);
 
             try {
-                await ctx.editMessageReplyMarkup(keyboards.settingsPeriods(periods).reply_markup);
+                await ctx.editMessageReplyMarkup(
+                    keyboards.settingsPeriods(flow.periods).reply_markup
+                );
             } catch (error) {
-
                 if (!error.description?.includes('message is not modified')) {
                     throw error;
                 }
             }
-        } else if (action === 'next' && value === 'periods') {
-            if (ctx.session.settingsOnboarding.periods.length === 0) {
-                await ctx.answerCbQuery('❗ Оберіть хоча б один період');
-                return;
-            }
+            return;
+        }
 
-            ctx.session.settingsOnboarding.step = 3;
+        if ((action === 'next' && value === 'periods') || action === 'skip') {
+            flow.step = 3;
+
             await ctx.editMessageText(
                 messages.onboardingScene(),
-                keyboards.settingsScene()
+                {
+                    parse_mode: 'Markdown',
+                    ...keyboards.settingsScene(flow.sceneType)
+                }
             );
-        } else if (action === 'skip') {
-            await finishPreferencesEdit(ctx, user.id);
+            return;
         }
-    } else if (step === 3) {
+    }
+
+    if (step === 3) {
         if (action === 'scene') {
-            ctx.session.settingsOnboarding.sceneType = value;
-            await finishPreferencesEdit(ctx, user.id);
-        } else if (action === 'skip') {
-            await finishPreferencesEdit(ctx, user.id);
+            flow.sceneType = value;
+
+            await ctx.editMessageText(
+                messages.onboardingScene(),
+                {
+                    parse_mode: 'Markdown',
+                    ...keyboards.settingsScene(flow.sceneType)
+                }
+            );
+            return;
         }
+
+        if (action === 'save') {
+            await finishPreferencesEdit(ctx, user.id);
+            return;
+        }
+
+        if (action === 'skip') {
+            flow.sceneType = null;
+            await finishPreferencesEdit(ctx, user.id);
+            return;
+        }
+    }
+}
+
+function toggleValue(arr, value) {
+    const index = arr.indexOf(value);
+
+    if (index > -1) {
+        arr.splice(index, 1);
+    } else {
+        arr.push(value);
     }
 }
 
@@ -134,14 +177,17 @@ async function startPreferencesEdit(ctx, user) {
 
     await ctx.editMessageText(
         messages.editPreferencesStart(currentPreferences),
-        keyboards.settingsGenres(ctx.session.settingsOnboarding.genres)
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.settingsGenres(ctx.session.settingsOnboarding.genres)
+        }
     );
 }
 
 async function finishPreferencesEdit(ctx, userId) {
     const { genres, periods, sceneType } = ctx.session.settingsOnboarding;
 
-    await authService.saveUserPreferences(userId, {
+    const success = await authService.saveUserPreferences(userId, {
         genres,
         periods,
         sceneType
@@ -149,16 +195,56 @@ async function finishPreferencesEdit(ctx, userId) {
 
     delete ctx.session.settingsOnboarding;
 
+    if (!success) {
+        await ctx.editMessageText(
+            '❌ Не вдалося зберегти налаштування. Спробуйте ще раз пізніше.'
+        );
+        return;
+    }
+
     await ctx.editMessageText(
-        '✅ *Налаштування збережено!*\n\n' +
-        'Ваші рекомендації оновлено на основі нових вподобань.',
+        '✅ *Налаштування збережено!*\n\nВаші рекомендації оновлено.',
         { parse_mode: 'Markdown' }
     );
 
     const updatedPreferences = await authService.getUserPreferences(userId);
+
     await ctx.reply(
         messages.settingsMenu(updatedPreferences),
-        keyboards.settingsMenu()
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.settingsMenu()
+        }
+    );
+}
+
+async function clearPreferences(ctx, userId) {
+    const success = await authService.saveUserPreferences(userId, {
+        genres: [],
+        periods: [],
+        sceneType: null
+    });
+
+    delete ctx.session.settingsOnboarding;
+
+    if (!success) {
+        await ctx.answerCbQuery('❌ Не вдалося очистити налаштування');
+        return;
+    }
+
+    await ctx.editMessageText(
+        '🗑 *Усі налаштування очищено.*',
+        { parse_mode: 'Markdown' }
+    );
+
+    const updatedPreferences = await authService.getUserPreferences(userId);
+
+    await ctx.reply(
+        messages.settingsMenu(updatedPreferences),
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.settingsMenu()
+        }
     );
 }
 

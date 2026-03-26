@@ -32,6 +32,21 @@ async function query(sql, params) {
     }
 }
 
+async function withTransaction(callback) {
+    const connection = await getPool().getConnection();
+    try {
+        await connection.beginTransaction();
+        const result = await callback(connection);
+        await connection.commit();
+        return result;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
 function getPool() {
     if (!pool) {
         return createPool();
@@ -42,5 +57,6 @@ function getPool() {
 module.exports = {
     getPool,
     query,
-    createPool
+    createPool,
+    withTransaction
 };

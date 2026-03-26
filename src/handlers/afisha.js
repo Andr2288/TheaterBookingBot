@@ -21,7 +21,10 @@ async function showAfisha(ctx) {
 
     await ctx.reply(
         messages.afishaHeader(shows.length),
-        keyboards.afishaList(shows)
+        {
+            parse_mode: 'Markdown',
+            ...keyboards.afishaList(shows)
+        }
     );
 }
 
@@ -29,7 +32,7 @@ async function handleShowCallback(ctx) {
     const data = ctx.callbackQuery.data;
     const parts = data.split(':');
     const action = parts[1];
-    const showId = parseInt(parts[2]);
+    const showId = parseInt(parts[2], 10);
 
     if (action === 'details') {
         const show = await showService.getShowById(showId);
@@ -41,26 +44,35 @@ async function handleShowCallback(ctx) {
 
         await ctx.editMessageText(
             messages.showDetails(show),
-            keyboards.showActions(showId)
+            {
+                parse_mode: 'Markdown',
+                ...keyboards.showActions(showId)
+            }
         );
-    } else if (action === 'book') {
+        return;
+    }
 
+    if (action === 'book') {
         const show = await showService.getShowById(showId);
+
+        if (!show) {
+            await ctx.answerCbQuery('❌ Виставу не знайдено');
+            return;
+        }
 
         ctx.session.booking = {
             showId,
             show,
-            step: 'zone'
+            selectedSeats: [],
+            currentRow: null,
+            step: 'rows'
         };
 
-        const bookedSeats = await showService.getBookedSeats(showId);
-        const availability = showService.calculateAvailability(show.scene_type, bookedSeats);
+        await require('./booking').showRowsStep(ctx, show);
+        return;
+    }
 
-        await ctx.editMessageText(
-            messages.selectZone(show),
-            keyboards.zoneSelection(show, availability)
-        );
-    } else if (action === 'back') {
+    if (action === 'back') {
         await showAfisha(ctx);
     }
 }
